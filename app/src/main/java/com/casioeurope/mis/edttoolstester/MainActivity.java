@@ -7,6 +7,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.net.ProxyInfo;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.RemoteException;
@@ -23,6 +24,8 @@ import com.casioeurope.mis.edt.type.ReadWriteFileParams;
 import com.casioeurope.mis.edt.type.ScanResult;
 import com.casioeurope.mis.edttoolstester.databinding.ActivityMainBinding;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.nio.file.LinkOption;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
@@ -202,13 +205,23 @@ public class MainActivity extends Activity implements View.OnClickListener {
                 Log.d(TAG, result);
             } else if (v == activityMainBinding.buttonAddWifi) {
                 Log.d(TAG, "Calling Add Wifi Account from Service!");
-                //               WifiConfigurationParcelable conf = new WifiConfigurationParcelable();
                 android.net.wifi.WifiConfiguration conf = new android.net.wifi.WifiConfiguration();
-                conf.SSID = "\"MIS Test\"";
+                conf.SSID = "\"Test Network\"";
                 conf.hiddenSSID = true;
                 //noinspection SpellCheckingInspection
-                conf.preSharedKey = "\"UmfegUmfe\"";
-                //String result = String.format("Add Wifi AccountResult = %b", edtToolsService.addNetwork(conf));
+                conf.preSharedKey = "\"whatever\"";
+                ProxyInfo proxyInfo = ProxyInfo.buildDirectProxy("my.proxy.server", 1234);
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) { // requires Android O or later
+                    conf.setHttpProxy(proxyInfo);
+                } else {
+                    try {
+                        Method setHttpProxyMethod = conf.getClass().getDeclaredMethod("setHttpProxy", ProxyInfo.class);
+                        setHttpProxyMethod.setAccessible(true);
+                        setHttpProxyMethod.invoke(conf, proxyInfo);
+                    } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
+                        e.printStackTrace();
+                    }
+                }
                 boolean retVal = EDTLibrary.addNetwork(conf);
                 if (retVal) retVal = EDTLibrary.connectNetwork("MIS Test");
                 String result = String.format("Add Wifi AccountResult = %b", retVal);
